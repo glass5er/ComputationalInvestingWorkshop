@@ -1,1 +1,1 @@
-# ComputationalInvestingWorkshop
+# ComputationalInvestingWorkshopThis is a workshop for computational investing.It contains:- Lesson summary in coursera <http://www.coursera.org/learn/computational-investing>- QSTK tutorial scripts- Portfolio optimizing tools
