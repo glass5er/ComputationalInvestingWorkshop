@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pandas.io.data as web
 import pandas.tools.plotting as plotting
-
+import lxml.html
 
 def get_quote_yahoojp(code, start=None, end=None, interval='d'):
 	base = 'http://info.finance.yahoo.co.jp/history/?code={0}.T&{1}&{2}&tm={3}&p={4}'
@@ -24,7 +24,11 @@ def get_quote_yahoojp(code, start=None, end=None, interval='d'):
 
 	while True:
 		url = base.format(code, start, end, interval, p)
+		print url
+
+		title = lxml.html.parse(url).find(".//title").text
 		tables = pd.read_html(url, header=0)
+
 		if len(tables) < 2 or len(tables[1]) == 0:
 			break
 		results.append(tables[1])
@@ -32,13 +36,16 @@ def get_quote_yahoojp(code, start=None, end=None, interval='d'):
 	result = pd.concat(results, ignore_index=True)
 
 	result.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close']
+
+	#  Use '年月日' to parse Japanese date.
 	if interval == 'm':
-		result['Date'] = pd.to_datetime(result['Date'], format='%Y%m')
+		result['Date'] = pd.to_datetime(result['Date'], format='%Y年%m月')
 	else:
-		result['Date'] = pd.to_datetime(result['Date'], format='%Y%m%d')
+		result['Date'] = pd.to_datetime(result['Date'], format='%Y年%m月%d日')
+
 	result = result.set_index('Date')
 	result = result.sort_index()
-	return result
+	return title, result
 
 
 class OhlcPlot(plotting.LinePlot):
@@ -63,9 +70,10 @@ class OhlcPlot(plotting.LinePlot):
 		plotting.LinePlot.__init__(self, data, **kwargs)
 
 	def _get_plot_function(self):
-		from matplotlib.finance import candlestick
+		#  From matplotlib 1.5, 'candlestick' is no longer available. Use 'candlestick_ohlc'.
+		from matplotlib.finance import candlestick_ohlc
 		def _plot(data, ax, **kwds):
-			candles = candlestick(ax, data.values, **kwds)
+			candles = candlestick_ohlc(ax, data.values, **kwds)
 			return candles
 		return _plot
 
@@ -111,19 +119,26 @@ if __name__ == '__main__':
 	fileTmp = "tmp%d.pkl" % stockID
 	if not os.path.exists(fileTmp):
 		print "Fetching data of stock %d..." % stockID
-		tse = get_quote_yahoojp(stockID, start=start)
-		pickle.dump(tse, open(fileTmp, "wb"))
+		title, result = get_quote_yahoojp(stockID, start=start)
+		pickle.dump([title, result], open(fileTmp, "wb"))
 	else:
-		tse = pickle.load(open(fileTmp, "rb"))
+		title, result = pickle.load(open(fileTmp, "rb"))
 
-	tse = tse[-30:]
-	print tse
+	print result[-30:]
+
 
 	#  Plot candle stick using Open, High, Low, and Close.
 	#  Plot only business day.
-	tse = tse.asfreq('B')
+	result = result.asfreq('B')
 
-	tse.plot(kind='ohlc')
+	result.plot(kind='ohlc')
 
-	plt.subplots_adjust(bottom=0.25)
+	#  Set Japanese font property for title.
+	font_dict = { "family": "TakaoGothic" }
+	plt.title(title, **font_dict)
+
+	#  To avoid garbled characters for now, locale English to labels.
+	import locale
+	locale.setlocale(locale.LC_ALL, ('en', 'UTF-8'))
+
 	plt.show()
