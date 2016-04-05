@@ -108,11 +108,21 @@ plotting._plot_klass['ohlc'] = OhlcPlot
 
 
 if __name__ == '__main__':
+	import matplotlib
+	import matplotlib.font_manager as font_manager
+	#  Set Japanese font property for graph plot.
+	fontPath = "/usr/share/fonts/truetype/takao-mincho/TakaoExMincho.ttf"
+	import os
+	if os.path.exists(fontPath):
+		prop = font_manager.FontProperties(fname=fontPath)
+		matplotlib.rc("font", family=prop.get_name())
+	else:
+		print "Warning: Font file %s not found." % fontPath
+
 	import matplotlib.pyplot as plt
 	start = '2014-10-01'
 
 	import pickle
-	import os
 
 	stockID = 7203  #  Toyota
 
@@ -124,21 +134,12 @@ if __name__ == '__main__':
 	else:
 		title, result = pickle.load(open(fileTmp, "rb"))
 
-	print result[-30:]
-
+	#print result[-30:]
 
 	#  Plot candle stick using Open, High, Low, and Close.
 	#  Plot only business day.
 	result = result.asfreq('B')
 
 	result.plot(kind='ohlc')
-
-	#  Set Japanese font property for title.
-	font_dict = { "family": "TakaoGothic" }
-	plt.title(title, **font_dict)
-
-	#  To avoid garbled characters for now, locale English to labels.
-	import locale
-	locale.setlocale(locale.LC_ALL, ('en', 'UTF-8'))
-
+	plt.title(title)
 	plt.show()
